@@ -1,0 +1,193 @@
+<html>
+
+<head>
+<style>
+    section {
+      display: table;
+      width: 100%;
+      font-size: 1.5em;
+      margin-bottom: 1em;
+    }
+
+    section > * {
+      display: table-row;
+    }
+
+    section .col {
+      display: table-cell;
+      padding: 6px;
+      border: 4px solid #fff;
+      border-collapse: collapse;
+      border-radius: 8px;
+    }
+    .cvalue {
+      background-color: #eee;
+    }
+    div.field {
+        display: inline-block;
+    }
+    label {
+        display: block;
+    }
+    input {
+        font-size: 2em;
+        max-width: 7em;
+    }
+    select {
+        font-size: 2em;
+    }
+    button {
+        font-size: 2em;
+    }
+    .entry {
+        display: inline-block;
+        margin: 2px 4px;
+        padding: 4px;
+        background-color: #eee;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }
+    .you {
+        display: inline-block;
+        margin: 2px 4px;
+        padding: 4px;
+        background-color: #efe;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }
+    .summary {
+        border: 1px solid black;
+        border-collapse: collapse;
+    }
+    .summary td {
+        border: 1px solid black;
+        padding: 5px;
+    }
+</style>
+
+<script language="javascript" type="text/javascript">
+    function generate_you(adjustment)
+    {
+        var entry = document.createElement("span");
+        entry.className = "you";
+        entry.innerHTML = "you: <b>" + adjustment + "</b>";
+        return entry;
+    }
+
+    function populateData(resp)
+    {
+        var adjustment = resp.adjustment;
+        document.getElementById("s_total").innerHTML = resp.totals.total;
+        document.getElementById("s_milestone").innerHTML = resp.totals.next;
+        document.getElementById("s_remaining").innerHTML = resp.totals.need;
+        document.getElementById("a_total").innerHTML = resp.totals_adjusted.total;
+        document.getElementById("a_milestone").innerHTML = resp.totals_adjusted.next;
+        document.getElementById("a_remaining").innerHTML = resp.totals_adjusted.need;
+
+        document.getElementById("records").innerHTML = "";
+        for (const [name, value] of Object.entries(resp.records)) {
+            var entry = document.createElement("div");
+            entry.className = "entry";
+            entry.innerHTML = name + ": <b>" + value + "</b>";
+            document.getElementById("records").appendChild(entry);
+        }
+        document.getElementById("countdown").innerHTML = "";
+        if (resp.optimizations.length == 0) {
+            var entry = document.createElement("h2");
+            entry.innerHTML = "Do not even bother, reach your 750000 first";
+            document.getElementById("countdown").appendChild(entry);
+        } else {
+            var opts = document.getElementById("countdown");
+            for (var i = 0; i < resp.optimizations.length; i++) {
+                opts.appendChild(document.createElement("hr"));
+                var header = document.createElement("h2");
+                header.innerHTML = (resp.adjustment + resp.optimizations[i].remaining) + " ("
+                    + resp.optimizations[i].remaining + ") to reach " + resp.optimizations[i].milestone;
+                opts.appendChild(header);
+                var total = document.createElement("p");
+                total.innerHTML = "Total: " + resp.optimizations[i].total + " including: ";
+                total.appendChild(generate_you(adjustment));
+                for (const [name, value] of Object.entries(resp.optimizations[i].shifts)) {
+                    var entry = document.createElement("span");
+                    entry.className = "entry";
+                    entry.innerHTML = name + ": <b>" + value + "</b>";
+                    total.appendChild(entry);
+                }
+                opts.appendChild(total);
+            }
+        }
+    }
+
+    function fetchData()
+    {
+        var xhrobj = new XMLHttpRequest();
+        var adjustment = document.getElementById("adjustment").value;
+        var at_least = document.getElementById("at_least").value;
+        var generations = document.getElementById("generations").value;
+        xhrobj.open('GET', '/data/' + adjustment + '/' + at_least + '/' + generations, true);
+        xhrobj.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                populateData(JSON.parse(xhrobj.responseText));
+            }
+        }
+        xhrobj.send();
+    }
+</script>
+</head>
+
+<body>
+    <h1>Configuration</h1>
+    <div class="field">
+    <label for="adjustment">Your steps</label>
+    <input type="number" type="text" id="adjustment" value="0"/>
+    </div>
+    <div class="field">
+    <label for="adjustment">Skip when less than</label>
+    <input type="number" type="text" id="at_least" value="50"/>
+    </div>
+    <div class="field">
+    <label for="adjustment">Generations</label>
+    <select id="generations">
+        <option value="5">5 - fast</option>
+        <option value="10" selected>10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100 - slow</option>
+    </select>
+    </div>
+    <button onclick="fetchData()">⏵</button>
+    <h1>Current Records</h1>
+    <section>
+        <header>
+            <div class="col"></div>
+            <div class="col">Total</div>
+            <div class="col">Next Milestone</div>
+            <div class="col">Remaining</div>
+        </header>
+        <div class="row">
+            <div class="col">Without you</div>
+            <div class="col cvalue" id="s_total"></div>
+            <div class="col cvalue" id="s_milestone"></div>
+            <div class="col cvalue" id="s_remaining"></div>
+        </div>
+        <div class="row">
+            <div class="col">With you</div>
+            <div class="col cvalue" id="a_total"></div>
+            <div class="col cvalue" id="a_milestone"></div>
+            <div class="col cvalue" id="a_remaining"></div>
+        </div>
+    </section>
+    <!--
+    <table class="summary">
+        <th><tr><td></td><td>Total</td><td>Next Milestone</td><td>Remaining</td></tr></th>
+        <tr><td>Without you</td><td id="s_total"></td><td id="s_milestone"></td><td id="s_remaining"></td></tr>
+        <tr><td>With you</td><td id="a_total"></td><td id="a_milestone"></td><td id="a_remaining"></td></tr>
+    </table>
+    -->
+    <div id="totals" class="totals"></div>
+    <div id="records" class="records"></div>
+    <h1>Countdown</h1>
+    <div id="countdown" class="countdown"></div>
+
+</body>
+</html>
